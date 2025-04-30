@@ -1,0 +1,339 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>🎤 Quiz de Hip-Hop</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: radial-gradient(circle at center, #0a0a0a, #000);
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      padding: 20px;
+    }
+
+    .quiz-box {
+      background: #111;
+      padding: 30px;
+      border-radius: 20px;
+      max-width: 600px;
+      width: 100%;
+      box-shadow: 0 0 25px #00f6ff88;
+      text-align: center;
+      border: 2px solid #00f6ff;
+    }
+
+    .progress-container {
+      width: 100%;
+      background-color: #0a0a0a;
+      border: 2px solid #00f6ff;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      height: 20px;
+    }
+
+    .progress-bar {
+      height: 100%;
+      background-color: #00ff55;
+      width: 0%;
+      border-radius: 8px;
+      transition: width 0.3s ease;
+    }
+
+    .question {
+      font-size: 20px;
+      font-weight: bold;
+      margin: 20px 0;
+    }
+
+    .options button {
+      background-color: #0a0a0a;
+      color: white;
+      border: 2px solid #00f6ff;
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 10px;
+      cursor: pointer;
+      width: 100%;
+      transition: all 0.3s ease;
+      font-size: 16px;
+    }
+
+    .options button:hover {
+      background-color: #111;
+    }
+
+    .options .selected {
+      background-color: #001e1e;
+      border: 2px solid #00ff55;
+    }
+
+    #confirmBtn {
+      background-color: #000;
+      color: white;
+      border: 2px solid #00ff55;
+      padding: 15px;
+      margin-top: 20px;
+      border-radius: 10px;
+      cursor: pointer;
+      width: 100%;
+      font-weight: bold;
+      font-size: 16px;
+      transition: all 0.4s ease;
+      animation: pulse 2s infinite;
+    }
+
+    #confirmBtn:hover {
+      background-color: #003300;
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 5px #00ff55; }
+      50% { box-shadow: 0 0 20px #00ff55; }
+      100% { box-shadow: 0 0 5px #00ff55; }
+    }
+
+    .start-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      max-width: 400px;
+      width: 100%;
+    }
+
+    input[type="text"] {
+      padding: 12px;
+      border-radius: 8px;
+      border: none;
+      width: 100%;
+      font-size: 16px;
+    }
+
+    #startBtn {
+      padding: 12px;
+      background-color: #000;
+      color: white;
+      border: 2px solid #00ff55;
+      font-weight: bold;
+      font-size: 16px;
+      border-radius: 10px;
+      cursor: pointer;
+      animation: pulse 2s infinite;
+      width: 100%;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    #ranking {
+      background-color: #111;
+      border-radius: 15px;
+      padding: 20px;
+      margin-top: 20px;
+      width: 300px;
+      box-shadow: 0 0 15px rgba(0, 255, 85, 0.4);
+    }
+
+    #ranking h2 {
+      text-align: center;
+      font-size: 20px;
+      color: #00ff55;
+    }
+
+    #ranking ul {
+      list-style-type: none;
+      padding: 0;
+      color: #00f6ff;
+    }
+
+    #ranking ul li {
+      padding: 8px;
+      border-bottom: 1px solid #00f6ff;
+    }
+  </style>
+</head>
+<body>
+  <div class="start-screen" id="startScreen">
+    <input type="text" id="username" placeholder="Insira seu nome..." />
+    <button id="startBtn">Começar Quiz</button>
+  </div>
+
+  <div class="quiz-box hidden" id="quizBox">
+    <h1>🎤 Quiz de Hip-Hop</h1>
+    <div class="progress-container">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+    <div class="question" id="question">Carregando...</div>
+    <div class="options" id="options"></div>
+    <button id="confirmBtn">Confirmar</button>
+  </div>
+
+  <div id="ranking" class="hidden">
+    <h2>Ranking</h2>
+    <ul id="rankingList"></ul>
+  </div>
+
+  <script>
+    const quiz = [
+      { q: "Quem é conhecido como 'o pai do Hip-Hop'?", o: ["Tupac", "DJ Kool Herc", "Dr. Dre", "Notorious B.I.G"], a: 1 },
+      { q: "Qual cidade é considerada o berço do Hip-Hop?", o: ["Los Angeles", "Chicago", "Nova York", "Atlanta"], a: 2 },
+      { q: "Quem fundou a Death Row Records?", o: ["Jay-Z", "Dr. Dre", "Suge Knight", "Nas"], a: 2 },
+      { q: "Qual rapper ficou famoso com a música 'Juicy'?", o: ["2Pac", "Eminem", "Biggie", "Snoop Dogg"], a: 2 },
+      { q: "Quem foi o primeiro rapper a ganhar um Grammy?", o: ["Kanye West", "Snoop Dogg", "Dr. Dre", "Will Smith"], a: 3 },
+      { q: "Qual rapper é conhecido pelo alter ego 'Slim Shady'?", o: ["Jay-Z", "Eminem", "Nas", "Lil Wayne"], a: 1 },
+      { q: "O que significa o termo 'freestyle'?", o: ["Rimando de improviso", "Cantar com melodia", "Estilo de dança", "Competição de rap"], a: 0 },
+      { q: "Qual grupo lançou o álbum 'Straight Outta Compton'?", o: ["Wu-Tang Clan", "Run-D.M.C.", "N.W.A", "Beastie Boys"], a: 2 },
+      { q: "Quem foi o rapper que popularizou o estilo 'gangsta rap'?", o: ["Dr. Dre", "Ice Cube", "Snoop Dogg", "Eazy-E"], a: 3 },
+      { q: "Quem é o rapper conhecido como 'O Rei do Rap'?", o: ["Jay-Z", "Nas", "Eminem", "Kendrick Lamar"], a: 0 },
+      { q: "Qual rapper lançou o álbum 'Illmatic'?", o: ["Nas", "Jay-Z", "Tupac", "Biggie"], a: 0 },
+      { q: "Quem é conhecido por popularizar o 'trap'?", o: ["T.I.", "Lil Wayne", "Kanye West", "Drake"], a: 0 },
+      { q: "Qual grupo é famoso pelo álbum 'Enter the Wu-Tang (36 Chambers)'?", o: ["N.W.A", "Wu-Tang Clan", "Run-D.M.C.", "Public Enemy"], a: 1 },
+      { q: "Quem lançou a música 'Lose Yourself'?", o: ["Eminem", "50 Cent", "Dr. Dre", "Kanye West"], a: 0 },
+      { q: "Qual rapper é conhecido como 'Yeezy'?", o: ["Jay-Z", "Kanye West", "Lil Wayne", "Drake"], a: 1 },
+      { q: "Qual é o nome do primeiro álbum de Tupac?", o: ["Me Against the World", "All Eyez on Me", "2Pacalypse Now", "Strictly 4 My N.I.G.G.A.Z."], a: 2 },
+      { q: "Quem é o fundador da Roc-A-Fella Records?", o: ["Jay-Z", "Diddy", "Dr. Dre", "Suge Knight"], a: 0 },
+      { q: "Qual rapper é conhecido por 'Hotline Bling'?", o: ["Drake", "Kendrick Lamar", "J. Cole", "Chance the Rapper"], a: 0 },
+      { q: "Qual grupo lançou 'Rapper's Delight'?", o: ["Sugarhill Gang", "Run-D.M.C.", "Beastie Boys", "Public Enemy"], a: 0 },
+      { q: "Quem venceu o Pulitzer por 'DAMN.'?", o: ["Kendrick Lamar", "Jay-Z", "Nas", "Kanye West"], a: 0 }
+    ];
+
+    let currentQuestion = 0;
+    let score = 0;
+    let selectedOption = null;
+    let userName = "";
+    const rankings = [];
+
+    const startScreen = document.getElementById('startScreen');
+    const quizBox = document.getElementById('quizBox');
+    const questionEl = document.getElementById('question');
+    const optionsEl = document.getElementById('options');
+    const confirmBtn = document.getElementById('confirmBtn');
+    const rankingDiv = document.getElementById('ranking');
+    const rankingList = document.getElementById('rankingList');
+    const startBtn = document.getElementById('startBtn');
+    const usernameInput = document.getElementById('username');
+    const progressBar = document.getElementById('progressBar');
+
+    function startQuiz() {
+      if (!usernameInput.value.trim()) {
+        alert("Por favor, insira seu nome!");
+        return;
+      }
+      userName = usernameInput.value.trim();
+      startScreen.classList.add('hidden');
+      quizBox.classList.remove('hidden');
+      updateProgressBar();
+      loadQuestion();
+    }
+
+    function loadQuestion() {
+      selectedOption = null;
+      confirmBtn.disabled = true;
+      const currentQuiz = quiz[currentQuestion];
+      questionEl.textContent = currentQuiz.q;
+      optionsEl.innerHTML = '';
+      currentQuiz.o.forEach((option, index) => {
+        const button = document.createElement('button');
+        button.textContent = option;
+        button.addEventListener('click', () => selectOption(index));
+        optionsEl.appendChild(button);
+      });
+    }
+
+    function selectOption(index) {
+      selectedOption = index;
+      const buttons = optionsEl.querySelectorAll('button');
+      buttons.forEach((btn, i) => {
+        btn.classList.remove('selected');
+        if (i === index) btn.classList.add('selected');
+      });
+      confirmBtn.disabled = false;
+    }
+
+    function updateProgressBar() {
+      const progress = ((currentQuestion + 1) / quiz.length) * 100;
+      progressBar.style.width = `${progress}%`;
+    }
+
+    function confirmAnswer() {
+      if (selectedOption === null) return;
+      if (selectedOption === quiz[currentQuestion].a) {
+        score++;
+      }
+      currentQuestion++;
+      if (currentQuestion < quiz.length) {
+        updateProgressBar();
+        loadQuestion();
+      } else {
+        questionEl.textContent = `Quiz concluído! Sua pontuação: ${score}/20`;
+        optionsEl.innerHTML = '';
+        confirmBtn.style.display = 'none';
+        showRanking();
+      }
+    }
+
+    function showRanking() {
+      rankings.push({ name: userName, points: score });
+      rankings.sort((a, b) => b.points - a.points);
+      rankingList.innerHTML = '';
+      rankings.forEach((entry, index) => {
+        const li = document.createElement('li');
+        li.textContent = `${index + 1}. ${entry.name}: ${entry.points} pontos`;
+        rankingList.appendChild(li);
+      });
+      rankingDiv.classList.remove('hidden');
+    }
+
+    // Registrar eventos
+    startBtn.addEventListener('click', startQuiz);
+    confirmBtn.addEventListener('click', confirmAnswer);
+  </script>
+</body>
+</html>
